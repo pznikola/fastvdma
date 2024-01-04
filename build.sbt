@@ -1,57 +1,44 @@
 // See README.md for license details.
 
-def scalacOptionsVersion(scalaVersion: String): Seq[String] = {
-  Seq() ++ {
-    // If we're building with Scala > 2.11, enable the compile option
-    //  switch to support our anonymous Bundle definitions:
-    //  https://github.com/scala/bug/issues/10047
-    CrossVersion.partialVersion(scalaVersion) match {
-      case Some((2, scalaMajor: Long)) if scalaMajor < 12 => Seq()
-      case _ => Seq("-Xsource:2.11")
-    }
-  }
-}
-
-def javacOptionsVersion(scalaVersion: String): Seq[String] = {
-  Seq() ++ {
-    // Scala 2.12 requires Java 8. We continue to generate
-    //  Java 7 compatible code for Scala 2.11
-    //  for compatibility with old clients.
-    CrossVersion.partialVersion(scalaVersion) match {
-      case Some((2, scalaMajor: Long)) if scalaMajor < 12 =>
-        Seq("-source", "1.7", "-target", "1.7")
-      case _ =>
-        Seq("-source", "1.8", "-target", "1.8")
-    }
-  }
-}
-
 name := "chisel-dma"
 
-version := "3.5.3"
+version := "3.6-SNAPSHOT"
 
-scalaVersion := "2.12.13"
+scalaVersion := "2.13.10"
 
-crossScalaVersions := Seq("2.11.12", "2.12.13")
+crossScalaVersions := Seq("2.13.10", "2.12.17")
+
+scalacOptions ++= Seq("-encoding",
+  "UTF-8",
+  "-unchecked",
+  "-deprecation",
+  "-feature",
+  "-language:reflectiveCalls",
+  "-Xfatal-warnings",
+  "-Ymacro-annotations")
+
+javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
 resolvers ++= Seq(
   Resolver.sonatypeRepo("snapshots"),
-  Resolver.sonatypeRepo("releases")
-)
-// Chisel 3.5
-addCompilerPlugin("edu.berkeley.cs" % "chisel3-plugin" % "3.5.3" cross CrossVersion.full)
+  Resolver.sonatypeRepo("releases"),
+  Resolver.mavenLocal)
+
+// Chisel 3.6-SNAPSHOT
+addCompilerPlugin("edu.berkeley.cs" % "chisel3-plugin"
+  % ("3.5.6") cross CrossVersion.full)
 
 // Provide a managed dependency on X if -DXVersion="" is supplied on the command line.
 val defaultVersions = Map(
-  "chisel3" -> "3.5.+",
-  "chiseltest" -> "0.5.0",
-  "chisel-iotesters" -> "2.5.5+"
+  "chisel3" -> "3.5.6",
+  "chiseltest" -> "0.5-SNAPSHOT",
+  "chisel-iotesters" -> "2.5.6",
+  "rocketchip-macros" -> "1.6.0-fcdfff6c7-SNAPSHOT",
+  "rocketchip" -> "1.6.0-fcdfff6c7-SNAPSHOT",
+  "cde" -> "1.6-f11fb1aea-SNAPSHOT"
   )
-libraryDependencies ++= Seq("chisel3","chiseltest","chisel-iotesters").map {
+libraryDependencies ++= Seq("chisel3","chiseltest","chisel-iotesters", "rocketchip-macros", "rocketchip", "cde").map {
   dep: String => "edu.berkeley.cs" %% dep % sys.props.getOrElse(dep + "Version", defaultVersions(dep)) }
 
 libraryDependencies += "com.typesafe.play" %% "play-json" % "2.8.+"
 
-scalacOptions ++= scalacOptionsVersion(scalaVersion.value)
-
-javacOptions ++= javacOptionsVersion(scalaVersion.value)

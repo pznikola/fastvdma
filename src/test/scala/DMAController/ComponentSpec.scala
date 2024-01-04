@@ -16,12 +16,10 @@ package DMAController
 
 import DMAController.Frontend._
 import DMAController.Worker._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 import chisel3._
 import chiseltest._
 import chiseltest.iotesters._
-import org.scalatest.freespec.AnyFreeSpec
-import org.scalatest.flatspec.AnyFlatSpec
 import DMAController.DMAConfig._
 
 class ComponentSpec extends AnyFlatSpec with ChiselScalatestTester {

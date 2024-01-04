@@ -36,11 +36,11 @@ object DMADriver extends App {
       }
     }
 
-  (new ChiselStage).execute(
-    Array(
+  (new ChiselStage).emitVerilog(
+    args = Array(
       "-X", "verilog",
       "-e", "verilog",
       "--target-dir", "verilog/DMA"),
-    Seq(ChiselGeneratorAnnotation(() => new DMATop(config)))
+    gen = new DMATop(config)
   )
 }
