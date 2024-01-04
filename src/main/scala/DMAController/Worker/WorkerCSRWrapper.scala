@@ -51,7 +51,7 @@ class WorkerCSRWrapper(cfg: DMAConfig) extends DMAModule(cfg) {
   val clear = Wire(UInt())
 
   val envTag = System.getenv("TAG")
-  val tag = if (envTag.isEmpty()) "v0.0" else envTag
+  val tag = Option(envTag).filter(_.nonEmpty).getOrElse("v0.0")
   val version = RegInit(tag.filter(_.isDigit).toInt.U)
   val (in, csr, out) = cfg.getBusConfig()
   val encConfig = RegInit((in << 8 | csr << 4 | out).U(cfg.addrWidth.W))
