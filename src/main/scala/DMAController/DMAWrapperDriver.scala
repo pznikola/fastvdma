@@ -14,14 +14,14 @@ SPDX-License-Identifier: Apache-2.0
 
 package DMAController
 
+import chisel3._
 import DMAController.DMAConfig._
-import DMAUtils.{DMALogger, DMAParseInput}
 import chisel3.stage.ChiselStage
 import freechips.rocketchip.diplomacy.LazyModule
 import freechips.rocketchip.amba.axi4stream._
 import freechips.rocketchip.amba.axi4._
-import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.interrupts._
 
 object DMAWrapperDriver extends App {
   // DMA configuration
@@ -151,6 +151,15 @@ object DMAWrapperDriver extends App {
             config.writeDataWidth/8)) := axi
           val io_write = InModuleBody { ioOutNode.makeIO() }
         }
+      }
+
+      val ioIntNode: BundleBridgeSink[Vec[Bool]] = BundleBridgeSink[Vec[Bool]]()
+      ioIntNode := IntToBundleBridge(IntSinkPortParameters(Seq(IntSinkParameters(), IntSinkParameters()))) := io_interrupt
+      val io_int: ModuleValue[Vec[Bool]] = InModuleBody {
+        val io = IO(Output(ioIntNode.bundle.cloneType))
+        io.suggestName("int")
+        io := ioIntNode.bundle
+        io
       }
     }).module
   )
