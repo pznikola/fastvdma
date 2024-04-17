@@ -52,6 +52,10 @@ class DMAWrapper(
   val io_control   = AXI4SlaveNode(controlParams.AXI4.get)
   val io_interrupt = IntSourceNode(IntSourcePortSimple(num = 2, resources = dtsdevice.int))
 
+  lazy val io = IO(new Bundle {
+    val sync = new SyncBundle
+  })
+
   lazy val module = new LazyModuleImp(this) {
 
     val (readNode , _) = io_read.in.head
@@ -61,18 +65,11 @@ class DMAWrapper(
 
     val Bus = new Bus(dmaConfig)
 
-    val io = IO(new Bundle {
-      val sync = new SyncBundle
-    })
-
-    val csrFrontend = Module(Bus.getCSR(ccsr))
-
+    val csrFrontend    = Module(Bus.getCSR(ccsr))
     val readerFrontend = Module(Bus.getReader(reader))
-
     val writerFrontend = Module(Bus.getWriter(writer))
 
     val csr = Module(new CSR(dmaConfig))
-
     val ctl = Module(new WorkerCSRWrapper(dmaConfig))
 
     val queue = DMAQueue(readerFrontend.io.dataIO, dmaConfig)
@@ -85,11 +82,11 @@ class DMAWrapper(
 
     (readerFrontend.io.bus, readNode) match {
       case (axis: DMAController.Bus.AXIStream, node_axis: AXI4StreamBundle) => {
-        axis.tdata           := node_axis.bits.data
-        axis.tvalid          := node_axis.valid
-        axis.tuser           := node_axis.bits.user
-        axis.tlast           := node_axis.bits.last
-        node_axis.ready      := axis.tready
+        axis.tdata            := node_axis.bits.data
+        axis.tvalid           := node_axis.valid
+        axis.tuser            := node_axis.bits.user
+        axis.tlast            := node_axis.bits.last
+        node_axis.ready       := axis.tready
       }
       case (axi: DMAController.Bus.AXI4, node_axi: AXI4Bundle) => {
         // AW channel
@@ -194,29 +191,29 @@ class DMAWrapper(
     (csrFrontend.io.ctl, ctrlNode) match {
       case (axi: DMAController.Bus.AXI4Lite, node_axi: AXI4Bundle) => {
         // AW channel
-        axi.aw.awaddr        := node_axi.aw.bits.addr
-        axi.aw.awprot        := node_axi.aw.bits.prot
-        axi.aw.awvalid       := node_axi.aw.valid
-        node_axi.aw.ready    := axi.aw.awready
+        axi.aw.awaddr          := node_axi.aw.bits.addr
+        axi.aw.awprot          := node_axi.aw.bits.prot
+        axi.aw.awvalid         := node_axi.aw.valid
+        node_axi.aw.ready      := axi.aw.awready
         // W channel
-        axi.w.wdata          := node_axi.w.bits.data
-        axi.w.wstrb          := node_axi.w.bits.strb
-        axi.w.wvalid         := node_axi.w.valid
-        node_axi.w.ready     := axi.w.wready
+        axi.w.wdata            := node_axi.w.bits.data
+        axi.w.wstrb            := node_axi.w.bits.strb
+        axi.w.wvalid           := node_axi.w.valid
+        node_axi.w.ready       := axi.w.wready
         // B channel
-        node_axi.b.bits.resp := axi.b.bresp
-        node_axi.b.valid     := axi.b.bvalid
-        axi.b.bready         := node_axi.b.ready
+        node_axi.b.bits.resp   := axi.b.bresp
+        node_axi.b.valid       := axi.b.bvalid
+        axi.b.bready           := node_axi.b.ready
         // AR channel
-        axi.ar.araddr        := node_axi.ar.bits.addr
-        axi.ar.arprot        := node_axi.ar.bits.prot
-        axi.ar.arvalid       := node_axi.ar.valid
-        node_axi.ar.ready    := axi.ar.arready
+        axi.ar.araddr          := node_axi.ar.bits.addr
+        axi.ar.arprot          := node_axi.ar.bits.prot
+        axi.ar.arvalid         := node_axi.ar.valid
+        node_axi.ar.ready      := axi.ar.arready
         // R channel
-        node_axi.r.bits.data := axi.r.rdata
-        node_axi.r.bits.resp := axi.r.rresp
-        node_axi.r.valid     := axi.r.rvalid
-        axi.r.rready         := node_axi.r.ready
+        node_axi.r.bits.data   := axi.r.rdata
+        node_axi.r.bits.resp   := axi.r.rresp
+        node_axi.r.valid       := axi.r.rvalid
+        axi.r.rready           := node_axi.r.ready
       }
     }
 
