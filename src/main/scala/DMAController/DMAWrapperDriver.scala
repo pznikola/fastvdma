@@ -47,13 +47,11 @@ object DMAWrapperDriver extends App {
 
   // Read node parameters
   private val readParams = readNodeParams(
-    AXI4  = Some(Seq(AXI4SlavePortParameters(
-      Seq(AXI4SlaveParameters(
-        address       = Seq(readAddress),
-        supportsRead  = TransferSizes(1, config.readDataWidth/8),
-        supportsWrite = TransferSizes(1, config.readDataWidth/8),
-        interleavedId = Some(0))),
-      beatBytes = config.readDataWidth/8))),
+    AXI4 = Some(Seq(AXI4MasterPortParameters(
+      Seq(AXI4MasterParameters(
+        name = "io_read",
+        id = IdRange(0, 15)))))
+    ),
     AXI4Stream = Some(AXI4StreamSlaveParameters())
   )
 
@@ -115,20 +113,18 @@ object DMAWrapperDriver extends App {
           axis := BundleBridgeToAXI4Stream(AXI4StreamMasterParameters(n = config.readDataWidth/8)) := ioInNode
           val io_read = InModuleBody { ioInNode.makeIO() }
         }
-        case axi: AXI4SlaveNode => {
-          val ioInNode = BundleBridgeSource(() => AXI4Bundle(
-              AXI4BundleParameters(
-                addrBits = config.addrWidth,
-                dataBits = config.readDataWidth,
-                idBits   = 4
-              ))
-          )
-          axi := BundleBridgeToAXI4(AXI4MasterPortParameters(
-            Seq(AXI4MasterParameters(
-              name = "io_read",
-              id = IdRange(0,15)
-            )))) := ioInNode
-          val io_read = InModuleBody { ioInNode.makeIO() }
+        case axi: AXI4MasterNode => {
+          val ioInNode = BundleBridgeSink[AXI4Bundle]()
+          ioInNode := AXI4ToBundleBridge(AXI4SlavePortParameters(
+            Seq(AXI4SlaveParameters(
+              address = Seq(writeAddress),
+              regionType = RegionType.UNCACHED,
+              executable = false,
+              supportsWrite = TransferSizes(1, config.writeDataWidth / 8),
+              supportsRead = TransferSizes(1, config.writeDataWidth / 8)
+            )),
+            config.writeDataWidth / 8)) := axi
+          val io_read = InModuleBody {  ioInNode.makeIO() }
         }
       }
 

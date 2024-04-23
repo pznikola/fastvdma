@@ -15,7 +15,7 @@ import org.chipsalliance.cde.config.Parameters
 
 // Read Node Parameters
 case class readNodeParams (
-  AXI4:       Option[Seq[AXI4SlavePortParameters]],
+  AXI4:       Option[Seq[AXI4MasterPortParameters]],
   AXI4Stream: Option[AXI4StreamSlaveParameters]
 )
 
@@ -47,7 +47,7 @@ class DMAWrapper(
   // DTS
   val dtsdevice = new SimpleDevice("fastdma", Seq("antmicro, fastdma_" + reader + ccsr + writer))
   // Nodes
-  val io_read      = if (reader == AXI) AXI4SlaveNode(readerParams.AXI4.get) else AXI4StreamSlaveNode(readerParams.AXI4Stream.get)
+  val io_read      = if (reader == AXI) AXI4MasterNode(readerParams.AXI4.get) else AXI4StreamSlaveNode(readerParams.AXI4Stream.get)
   val io_write     = if (writer == AXI) AXI4MasterNode(writerParams.AXI4.get) else AXI4StreamMasterNode(writerParams.AXI4Stream.get)
   val io_control   = AXI4SlaveNode(controlParams.AXI4.get)
   val io_interrupt = IntSourceNode(IntSourcePortSimple(num = 2, resources = dtsdevice.int))
@@ -58,7 +58,6 @@ class DMAWrapper(
 
   lazy val module = new LazyModuleImp(this) {
 
-    val (readNode , _) = io_read.in.head
     val (writeNode, _) = io_write.out.head
     val (ctrlNode , _) = io_control.in.head
     val (intNode  , _) = io_interrupt.out.head
@@ -80,15 +79,17 @@ class DMAWrapper(
     readerFrontend.io.xfer <> ctl.io.xferRead
     writerFrontend.io.xfer <> ctl.io.xferWrite
 
-    (readerFrontend.io.bus, readNode) match {
-      case (axis: DMAController.Bus.AXIStream, node_axis: AXI4StreamBundle) => {
+    (readerFrontend.io.bus, io_read) match {
+      case (axis: DMAController.Bus.AXIStream, node: AXI4StreamSlaveNode) => {
+        val (node_axis , _)    = node.in.head
         axis.tdata            := node_axis.bits.data
         axis.tvalid           := node_axis.valid
         axis.tuser            := node_axis.bits.user
         axis.tlast            := node_axis.bits.last
         node_axis.ready       := axis.tready
       }
-      case (axi: DMAController.Bus.AXI4, node_axi: AXI4Bundle) => {
+      case (axi: DMAController.Bus.AXI4, node: AXI4MasterNode) => {
+        val (node_axi , _)      = node.out.head
         // AW channel
         node_axi.aw.bits.id    := axi.aw.awid
         node_axi.aw.bits.addr  := axi.aw.awaddr
