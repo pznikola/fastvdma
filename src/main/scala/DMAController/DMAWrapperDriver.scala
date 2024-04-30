@@ -17,11 +17,12 @@ package DMAController
 import chisel3._
 import DMAController.DMAConfig._
 import chisel3.stage.ChiselStage
-import freechips.rocketchip.diplomacy.LazyModule
+import freechips.rocketchip.diplomacy.{AddressSet, IdRange, RegionType, TransferSizes}
 import freechips.rocketchip.amba.axi4stream._
 import freechips.rocketchip.amba.axi4._
-import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.interrupts._
+import org.chipsalliance.diplomacy.bundlebridge.{BundleBridgeSink, BundleBridgeSource}
+import org.chipsalliance.diplomacy.lazymodule.{InModuleBody, LazyModule, ModuleValue}
 
 object DMAWrapperDriver extends App {
   // DMA configuration
