@@ -9,10 +9,10 @@ import DMAUtils._
 import chisel3._
 import freechips.rocketchip.amba.axi4._
 import freechips.rocketchip.amba.axi4stream._
-import freechips.rocketchip.diplomacy.SimpleDevice
+import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.interrupts._
+import freechips.rocketchip.tilelink.{TLFragmenter, TLToAXI4}
 import org.chipsalliance.cde.config.Parameters
-import org.chipsalliance.diplomacy.lazymodule.{LazyModule, LazyModuleImp}
 
 // Read Node Parameters
 case class readNodeParams (
@@ -28,15 +28,15 @@ case class writeNodeParams (
 
 // Control Node Parameters
 case class controlNodeParams (
-  AXI4: Option[Seq[AXI4SlavePortParameters]]
+  AXI4: Seq[AXI4SlavePortParameters]
 )
 
 // DMA Wrapper
 class DMAWrapper(
-  dmaConfig:     DMAConfig,
-  readerParams:  readNodeParams,
-  writerParams:  writeNodeParams,
-  controlParams: controlNodeParams
+  dmaConfig  : DMAConfig,
+  beatBytes  : Int,
+  blockBytes : Int,
+  csrAddress : AddressSet
 ) extends LazyModule()(Parameters.empty) {
 
   val (reader, ccsr, writer) = dmaConfig.getBusConfig()
@@ -47,21 +47,41 @@ class DMAWrapper(
 
   // DTS
   val dtsdevice = new SimpleDevice("fastdma", Seq("antmicro, fastdma_" + reader + ccsr + writer))
-  // Nodes
-  val io_read      = if (reader == AXI) AXI4MasterNode(readerParams.AXI4.get) else AXI4StreamSlaveNode(readerParams.AXI4Stream.get)
-  val io_write     = if (writer == AXI) AXI4MasterNode(writerParams.AXI4.get) else AXI4StreamMasterNode(writerParams.AXI4Stream.get)
-  val io_control   = AXI4SlaveNode(controlParams.AXI4.get)
-  val io_interrupt = IntSourceNode(IntSourcePortSimple(num = 2, resources = dtsdevice.int))
 
+  // Reader Node
+  val reader_node = if (reader == AXI) AXI4MasterNode(Seq(AXI4MasterPortParameters(Seq(AXI4MasterParameters(name = "reader_node", id = IdRange(0, 1))))))
+                    else AXI4StreamSlaveNode(AXI4StreamSlaveParameters())
+
+  // Writer Node
+  val writer_node = if (writer == AXI) AXI4MasterNode(Seq(AXI4MasterPortParameters(Seq(AXI4MasterParameters(name = "writer_node", id = IdRange(0, 1))))))
+                    else AXI4StreamMasterNode(Seq(AXI4StreamMasterPortParameters(Seq(AXI4StreamMasterParameters(name = "writer_node", n = beatBytes )))))
+
+  // Interrupt Node
+  val interrupt_node = IntSourceNode(IntSourcePortSimple(num = 2, resources = dtsdevice.int))
+
+  // CSR Node
+  val csr_node = AXI4SlaveNode(Seq(AXI4SlavePortParameters(
+    Seq(AXI4SlaveParameters(
+      address       = Seq(csrAddress),
+      resources     = dtsdevice.reg,
+      regionType    = RegionType.UNCACHED,
+      executable    = false,
+      supportsWrite = TransferSizes(1, beatBytes),
+      supportsRead  = TransferSizes(1, beatBytes),
+      interleavedId = Some(0))),
+    beatBytes = beatBytes))
+  )
+  
+  // IOs
   lazy val io = IO(new Bundle {
     val sync = new SyncBundle
   })
 
   lazy val module = new LazyModuleImp(this) {
 
-    val (writeNode, _) = io_write.out.head
-    val (ctrlNode , _) = io_control.in.head
-    val (intNode  , _) = io_interrupt.out.head
+    val (wr_io , _) = writer_node.out.head
+    val (csr_io, _) = csr_node.in.head
+    val (int_io, _) = interrupt_node.out.head
 
     val Bus = new Bus(dmaConfig)
 
@@ -80,7 +100,7 @@ class DMAWrapper(
     readerFrontend.io.xfer <> ctl.io.xferRead
     writerFrontend.io.xfer <> ctl.io.xferWrite
 
-    (readerFrontend.io.bus, io_read) match {
+    (readerFrontend.io.bus, reader_node) match {
       case (axis: DMAController.Bus.AXIStream, node: AXI4StreamSlaveNode) => {
         val (node_axis , _)    = node.in.head
         axis.tdata            := node_axis.bits.data
@@ -136,7 +156,7 @@ class DMAWrapper(
       }
     }
 
-    (writerFrontend.io.bus, writeNode) match {
+    (writerFrontend.io.bus, wr_io) match {
       case (axis: DMAController.Bus.AXIStream, node_axis: AXI4StreamBundle) => {
         node_axis.bits.data    := axis.tdata
         node_axis.valid        := axis.tvalid
@@ -190,7 +210,7 @@ class DMAWrapper(
       }
     }
 
-    (csrFrontend.io.ctl, ctrlNode) match {
+    (csrFrontend.io.ctl, csr_io) match {
       case (axi: DMAController.Bus.AXI4Lite, node_axi: AXI4Bundle) => {
         // AW channel
         axi.aw.awaddr          := node_axi.aw.bits.addr
@@ -219,8 +239,8 @@ class DMAWrapper(
       }
     }
 
-    intNode(0) := ctl.io.irq.readerDone
-    intNode(1) := ctl.io.irq.writerDone
+    int_io(0) := ctl.io.irq.readerDone
+    int_io(1) := ctl.io.irq.writerDone
 
     io.sync <> ctl.io.sync
   }
