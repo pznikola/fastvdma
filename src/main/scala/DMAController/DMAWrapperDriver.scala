@@ -3,12 +3,12 @@ package DMAController
 import chisel3._
 import DMAController.DMAConfig._
 import chisel3.stage.ChiselStage
-import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.diplomacy.{AddressSet, RegionType, TransferSizes}
 import freechips.rocketchip.amba.axi4stream._
 import freechips.rocketchip.amba.axi4._
 import freechips.rocketchip.interrupts._
-import freechips.rocketchip.tilelink.{BundleBridgeToTL, TLBundle, TLBundleParameters, TLMasterParameters, TLMasterPortParameters}
-import org.chipsalliance.diplomacy.bundlebridge.BundleBridgeSource
+import org.chipsalliance.diplomacy.bundlebridge.{BundleBridgeSink, BundleBridgeSource}
+import org.chipsalliance.diplomacy.lazymodule.{InModuleBody, LazyModule, ModuleValue}
 
 object DMAWrapperDriver extends App {
   // DMA configuration
@@ -38,7 +38,7 @@ object DMAWrapperDriver extends App {
       "-X", "verilog",
       "-e", "verilog",
       "--target-dir", "verilog/LazyDMA"),
-    gen = LazyModule(new DMAWrapper(config, 4, 16, ctrlAddress){
+    gen = LazyModule(new DMAWrapper(config, ctrlAddress){
       // CSR node IO
       val io_node_csr = BundleBridgeSource(() => AXI4Bundle(AXI4BundleParameters(addrBits = config.controlAddrWidth, dataBits = config.controlDataWidth, idBits = 1)))
       csr_node := BundleBridgeToAXI4(AXI4MasterPortParameters(Seq(AXI4MasterParameters("bundleBridgeToAXI4")))) := io_node_csr

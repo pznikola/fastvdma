@@ -9,10 +9,10 @@ import DMAUtils._
 import chisel3._
 import freechips.rocketchip.amba.axi4._
 import freechips.rocketchip.amba.axi4stream._
-import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.diplomacy.{AddressSet, IdRange, RegionType, SimpleDevice, TransferSizes}
 import freechips.rocketchip.interrupts._
-import freechips.rocketchip.tilelink.{TLFragmenter, TLToAXI4}
 import org.chipsalliance.cde.config.Parameters
+import org.chipsalliance.diplomacy.lazymodule.{LazyModule, LazyModuleImp}
 
 // Read Node Parameters
 case class readNodeParams (
@@ -34,8 +34,6 @@ case class controlNodeParams (
 // DMA Wrapper
 class DMAWrapper(
   dmaConfig  : DMAConfig,
-  beatBytes  : Int,
-  blockBytes : Int,
   csrAddress : AddressSet
 ) extends LazyModule()(Parameters.empty) {
 
@@ -54,7 +52,7 @@ class DMAWrapper(
 
   // Writer Node
   val writer_node = if (writer == AXI) AXI4MasterNode(Seq(AXI4MasterPortParameters(Seq(AXI4MasterParameters(name = "writer_node", id = IdRange(0, 1))))))
-                    else AXI4StreamMasterNode(Seq(AXI4StreamMasterPortParameters(Seq(AXI4StreamMasterParameters(name = "writer_node", n = beatBytes )))))
+                    else AXI4StreamMasterNode(Seq(AXI4StreamMasterPortParameters(Seq(AXI4StreamMasterParameters(name = "writer_node", n = dmaConfig.writeDataWidth / 8 )))))
 
   // Interrupt Node
   val interrupt_node = IntSourceNode(IntSourcePortSimple(num = 2, resources = dtsdevice.int))
@@ -66,10 +64,10 @@ class DMAWrapper(
       resources     = dtsdevice.reg,
       regionType    = RegionType.UNCACHED,
       executable    = false,
-      supportsWrite = TransferSizes(1, beatBytes),
-      supportsRead  = TransferSizes(1, beatBytes),
+      supportsWrite = TransferSizes(1, dmaConfig.controlDataWidth / 8),
+      supportsRead  = TransferSizes(1, dmaConfig.controlDataWidth / 8),
       interleavedId = Some(0))),
-    beatBytes = beatBytes))
+    beatBytes = dmaConfig.controlDataWidth / 8))
   )
   
   // IOs
