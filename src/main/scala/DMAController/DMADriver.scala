@@ -10,12 +10,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 SPDX-License-Identifier: Apache-2.0
-*/
+ */
 
 package DMAController
 
-import chisel3.stage.{ChiselStage,ChiselGeneratorAnnotation}
-import DMAConfig._
+import circt.stage.ChiselStage
+
 import DMAUtils.{DMAParseInput, DMALogger}
 import DMAController.DMAConfig._
 
@@ -36,11 +36,5 @@ object DMADriver extends App {
       }
     }
 
-  (new ChiselStage).emitVerilog(
-    args = Array(
-      "-X", "verilog",
-      "-e", "verilog",
-      "--target-dir", "verilog/DMA"),
-    gen = new DMATop(config)
-  )
+  ChiselStage.emitSystemVerilogFile(new DMATop(config))
 }

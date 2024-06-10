@@ -28,7 +28,7 @@ class AxiStreamMasterBfm(val axi: AXIStream,
                         val println: String => Unit) 
 extends AxiStreamBfm {
 
-  private var txList: ListBuffer[Int] = new ListBuffer()
+  private val txList: ListBuffer[Int] = new ListBuffer()
 
   private object State extends Enumeration {
     type State = Value
@@ -46,7 +46,7 @@ extends AxiStreamBfm {
     val buffer = file.Files.readAllBytes(path)
     val bb = ByteBuffer.wrap(buffer)
     //bb.order(ByteOrder.nativeOrder)
-    var buf = new Array[Int](buffer.length/4)
+    val buf = new Array[Int](buffer.length/4)
     bb.asIntBuffer.get(buf)
     for(i <- 0 until buf.length) {
       txList += buf(i)

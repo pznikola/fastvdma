@@ -10,28 +10,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 SPDX-License-Identifier: Apache-2.0
-*/
+ */
 
 package DMAController
 
 import scala.reflect.runtime.universe._
 import DMAController.Bfm.ChiselBfm
-import DMAController.Worker.{InterruptBundle, SyncBundle}
 import chiseltest.iotesters.PeekPokeTester
-import chisel3.Bits
+import chisel3._
 import DMAController.DMAConfig._
 
-class ImageTransfer(dut: DMATop, dmaFull: DMAFull, dmaConfig: DMAConfig) extends PeekPokeTester(dut){
+class ImageTransfer(dut: DMATop, dmaFull: DMAFull, dmaConfig: DMAConfig)
+    extends PeekPokeTester(dut) {
   val width = 256
   val height = 256
   val min = 0
   val max = width * height * 2
   var cnt: Int = 0
 
-  def waitRange(data: Bits, exp: Int, min: Int, max: Int) : Unit = {
+  def waitRange(data: Bits, exp: Int, min: Int, max: Int): Unit = {
     var cnt = 0
 
-    while(peek(data) != exp && cnt < max){
+    while (peek(data) != exp && cnt < max) {
       step(1)
       cnt += 1
     }
@@ -46,14 +46,14 @@ class ImageTransfer(dut: DMATop, dmaFull: DMAFull, dmaConfig: DMAConfig) extends
   def bfms = members.filter(_.typeSignature <:< typeOf[ChiselBfm])
 
   def stepSingle(): Unit = {
-    for(bfm <- bfms){
+    for (bfm <- bfms) {
       cls.reflectField(bfm.asTerm).get.asInstanceOf[ChiselBfm].update(cnt)
     }
     super.step(1)
   }
 
   override def step(n: Int): Unit = {
-    for(_ <- 0 until n) {
+    for (_ <- 0 until n) {
       stepSingle()
     }
   }

@@ -15,11 +15,10 @@ SPDX-License-Identifier: Apache-2.0
 package DMAController.Frontend
 
 import DMAController.Bus.AXI4Lite
-import DMAController.CSR.{CSR, CSRBusBundle}
-import DMAController.Worker.{WorkerCSRWrapper}
+import DMAController.CSR.CSRBusBundle
+import DMAController.DMAConfig._
 import chisel3._
 import chisel3.util._
-import DMAController.DMAConfig._
 
 class AXI4LiteCSR(addrWidth: Int, dataWidth: Int, regCount: Int,
     dmaConfig: DMAConfig) extends CSRBus[AXI4Lite](dmaConfig) {
@@ -62,12 +61,12 @@ class AXI4LiteCSR(addrWidth: Int, dataWidth: Int, regCount: Int,
     is(sIdle) {
       when(io.ctl.aw.awvalid) {
         state := sWriteAddr
-        addr := io.ctl.aw.awaddr(5, 2)
+        addr := io.ctl.aw.awaddr >> log2Ceil(dataWidth / 8)
         awready := true.B
 
       }.elsewhen(io.ctl.ar.arvalid) {
         state := sReadAddr
-        addr := io.ctl.ar.araddr(5, 2)
+        addr := io.ctl.ar.araddr >> log2Ceil(dataWidth / 8)
         arready := true.B
       }
     }
